@@ -1,14 +1,21 @@
+#include <linux/limits.h>
 #include <string.h>
 #include <unistd.h>
 #include <stdio.h>
 #include <wait.h>
 #include <termios.h>
 #include "CTui.h"
+#include <dirent.h>
+#include <sys/stat.h>
+#include <string.h>
+#include <errno.h>
 
 #define BUFF_SIZE 256
 #define MAX_TOKENS 256
 #define BACKSPACE 127
 #define CLEAR "\033[K"
+#define CMD_BASE_PATH "/usr/bin/"
+#define MAX_PATH 512
 
 char *const keywords[] = {
     "hello",
@@ -45,7 +52,6 @@ int tokenize(char *str, char **tokens){
 }
 
 int suggest(char buffer[], int cursor, char suggestion[]){
-
     if(cursor == 0){
         suggestion[0] = 0;
         return 0;
@@ -68,6 +74,42 @@ int file_contains(FILE *file, char *line){
 
 }
 
+int traverse_directory(const char *path, const char *target_name) {
+    DIR *dir = opendir(path);
+    if (!dir) {
+        perror("Cannot open directory");
+        return 0;
+    }
+
+    struct dirent *entry;
+    while ((entry = readdir(dir)) != NULL) {
+        // Skip . and ..
+        if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0)
+            continue;
+
+        // Construct full path
+        char full_path[512];
+        snprintf(full_path, sizeof(full_path), "%s/%s", path, entry->d_name);
+
+        // Check if it's a file and matches the name
+        struct stat statbuf;
+        if (stat(full_path, &statbuf) == 0 && S_ISREG(statbuf.st_mode)) {
+            if (strcmp(entry->d_name, target_name) == 0) {
+                return 1;
+            }
+        }
+
+        if (S_ISDIR(statbuf.st_mode)) {
+            continue;
+        }
+    }
+
+    return 0;
+}
+void handle_home_dir(char path[]){
+
+}
+
 void write_command(char *file_path,char command[], int len){
     FILE *file = fopen(file_path, "a+");
 
@@ -86,17 +128,22 @@ int main(){
     int suggestion_len;
     char *tokens[MAX_TOKENS];
     char c;
+    char curr_working_dir[MAX_PATH];
 
+    if(getcwd(curr_working_dir, sizeof(curr_working_dir)) == NULL){
+        printf("ERROR opening curr_working_dir!!!\n");
+        return 1;
+    }
 
-    for(;;){
+    for(;;){ // ovaj loop nije los
 
         if(!command_mode && !ready_to_exec){
-            prompt("At your service", COLOR_YELLOW, "-> ", COLOR_CYAN, 1);
+            prompt(curr_working_dir, COLOR_YELLOW, "-> ", COLOR_CYAN, 1);
             command_mode = 1;
             enable_raw_mode(&original);
         }
 
-        if(command_mode && !ready_to_exec){
+        if(command_mode && !ready_to_exec){ //msm to je isti djavo
             c = getchar();
 
             if(c == '\n'){
@@ -109,7 +156,7 @@ int main(){
             }
 
             buff[buff_cursor++] = c;
-            if(c == BACKSPACE){
+            if(c == BACKSPACE && buff_cursor>1){
                 buff_cursor-=2;
             }
             buff[buff_cursor] = 0;
@@ -124,31 +171,57 @@ int main(){
         };
 
         int n = tokenize(buff, tokens);
-
         tokens[n] = NULL;
 
-        printf("Tokens: ");
-        for(int i = 0; tokens[i] != NULL; i++) printf("%s ", tokens[i]);
-        printf("\n");
+//        printf("Tokens: ");
+//        for(int i = 0; tokens[i] != NULL; i++) printf("%s ", tokens[i]);
+//        printf("\n");
+
+        if(strncmp(tokens[0], "exit", BUFF_SIZE) == 0) break;
+        else if(strncmp(tokens[0], "cd", BUFF_SIZE) == 0){
+            if(n != 2){
+                printf("Wrong usage of cd!\n");
+                ready_to_exec = 0;
+                continue;
+            }
+            char temp[MAX_PATH];
+            snprintf(temp, MAX_PATH, "%s/%s", curr_working_dir, tokens[1]);
+            if(chdir(temp) != 0 && chdir(tokens[1]) != 0){
+                printf("Unknown directory!\n");
+                ready_to_exec = 0;
+                continue;
+            }
+
+            if(getcwd(curr_working_dir, sizeof(curr_working_dir)) == NULL){
+                printf("ERROR opening curr_working_dir!!!\n");
+                return 1;
+            }
+            ready_to_exec = 0;
+            continue;
+        }
 
         int pid = fork();
 
         if(pid == 0){
-            if(strncmp(tokens[0], "print", 256) == 0) execv("print", tokens);
-            else if(strncmp(tokens[0], "sort", 256) == 0) execv("sort", tokens);
-            else if(strncmp(tokens[0], "neofetch", 256) == 0){
-                tokens[0] = "/usr/bin/neofetch";
-                execv("/usr/bin/neofetch", tokens);
-                printf("EXECV: error!\n");
+
+            if(!traverse_directory("/usr/bin/", tokens[0])){
+                printf("Unknown command!\n");
+                ready_to_exec = 0;
                 return 1;
             }
-            else if(strncmp(tokens[0], "exit", 256) == 0) break;
+
+            char cmd_to_exec[sizeof(CMD_BASE_PATH) + strlen(tokens[0])];
+            strncpy(cmd_to_exec, CMD_BASE_PATH, sizeof(CMD_BASE_PATH));
+            strncat(cmd_to_exec, tokens[0], sizeof(CMD_BASE_PATH) + strlen(tokens[0]));
+
+            execv(cmd_to_exec, tokens);
+            printf("Error while execing!!!\n");
             ready_to_exec = 0;
+            return 1;
         }else{
             wait(0);
-            if(strncmp(tokens[0], "exit", 256) == 0){
-                break;
-            }
+            memset(buff, 0, BUFF_SIZE);
+            buff_cursor = 0;
             ready_to_exec = 0;
         }
 
