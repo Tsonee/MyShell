@@ -1,134 +1,30 @@
-#include <linux/limits.h>
-#include <string.h>
-#include <unistd.h>
-#include <stdio.h>
-#include <wait.h>
 #include <termios.h>
 #include "CTui.h"
-#include <dirent.h>
-#include <sys/stat.h>
-#include <string.h>
-#include <errno.h>
+#include "util.h"
+#include "suggestion.h"
 
 #define BUFF_SIZE 256
-#define MAX_TOKENS 256
 #define BACKSPACE 127
 #define CLEAR "\033[K"
 #define CMD_BASE_PATH "/usr/bin/"
+#define HOME_PATH "/home/"
 #define MAX_PATH 512
 
-char *const keywords[] = {
-    "hello",
-    "world",
-    "hello world"
-};
-
-const int keywords_size = 3;
-
-void enable_raw_mode(struct termios *original){
-    struct termios raw;
-    tcgetattr(STDIN_FILENO, original);
-    raw = *original;
-    raw.c_lflag &= ~(ICANON | ECHO);
-    tcsetattr(STDIN_FILENO, TCSANOW, &raw);
-}
-
-void disable_raw_mode(struct termios *original){
-    tcsetattr(STDIN_FILENO, TCSANOW, original);
-}
-
-
-int tokenize(char *str, char **tokens){
-
-    int i = 0;
-    char *token = strtok(str, " ");
-    while(token){
-        tokens[i] = token;
-        i++;
-        token = strtok(NULL, " ");
-    }
-
-    return i;
-}
-
-int suggest(char buffer[], int cursor, char suggestion[]){
-    if(cursor == 0){
-        suggestion[0] = 0;
-        return 0;
-    }
-
-    int len_to_copy = 0;
-
-    for(int i = 0; i < keywords_size; i++){
-        if(strncmp(buffer, keywords[i], cursor) == 0){
-            len_to_copy = strlen(keywords[i]) - cursor;
-            strncpy(suggestion, keywords[i] + cursor, len_to_copy);
-            break;
-        }
-    }
-
-    return len_to_copy;
-}
-
-int file_contains(FILE *file, char *line){
-
-}
-
-int traverse_directory(const char *path, const char *target_name) {
-    DIR *dir = opendir(path);
-    if (!dir) {
-        perror("Cannot open directory");
-        return 0;
-    }
-
-    struct dirent *entry;
-    while ((entry = readdir(dir)) != NULL) {
-        // Skip . and ..
-        if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0)
-            continue;
-
-        // Construct full path
-        char full_path[512];
-        snprintf(full_path, sizeof(full_path), "%s/%s", path, entry->d_name);
-
-        // Check if it's a file and matches the name
-        struct stat statbuf;
-        if (stat(full_path, &statbuf) == 0 && S_ISREG(statbuf.st_mode)) {
-            if (strcmp(entry->d_name, target_name) == 0) {
-                return 1;
-            }
-        }
-
-        if (S_ISDIR(statbuf.st_mode)) {
-            continue;
-        }
-    }
-
-    return 0;
-}
-void handle_home_dir(char path[]){
-
-}
-
-void write_command(char *file_path,char command[], int len){
-    FILE *file = fopen(file_path, "a+");
-
-    fclose(file);
-}
-
 int main(){
-
     struct termios original;
 
     int command_mode = 0;
     int ready_to_exec = 0;
-    char buff[BUFF_SIZE];
+    char buff[BUFF_SIZE + 1];//zbog tokenizacije, terminirajuca nula
     int buff_cursor = 0;
-    char suggestion[BUFF_SIZE];
+    char suggestion[BUFF_SIZE + 1];
     int suggestion_len;
     char *tokens[MAX_TOKENS];
     char c;
-    char curr_working_dir[MAX_PATH];
+    char curr_working_dir[MAX_PATH + 1];
+    char user[LOGIN_NAME_MAX + 1];
+
+    get_current_username(user);
 
     if(getcwd(curr_working_dir, sizeof(curr_working_dir)) == NULL){
         printf("ERROR opening curr_working_dir!!!\n");
@@ -138,27 +34,28 @@ int main(){
     for(;;){ // ovaj loop nije los
 
         if(!command_mode && !ready_to_exec){
-            prompt(curr_working_dir, COLOR_YELLOW, "-> ", COLOR_CYAN, 1);
+            char pmt[BUFF_SIZE];
+            sprintf(pmt, "At your service master %s -> %s", user, curr_working_dir);
+            prompt(pmt, COLOR_YELLOW, "-> ", COLOR_CYAN, 1);
             command_mode = 1;
             enable_raw_mode(&original);
         }
 
         if(command_mode && !ready_to_exec){ //msm to je isti djavo
             c = getchar();
-
             if(c == '\n'){
                 disable_raw_mode(&original);
-                buff_cursor = 0;
+                if(buff_cursor) ready_to_exec = 1;
+                buff[buff_cursor] = 0;
                 command_mode = 0;
-                ready_to_exec = 1;
                 printf("\n");//nakon izlaska iz raw moda zato sto nije stigao da ispise u buffer
                 continue;
             }
 
-            buff[buff_cursor++] = c;
-            if(c == BACKSPACE && buff_cursor>1){
-                buff_cursor-=2;
-            }
+            if(c == BACKSPACE){
+                if(buff_cursor >= 1) buff_cursor--;
+            }else buff[buff_cursor++] = c;
+
             buff[buff_cursor] = 0;
             suggestion_len = suggest(buff, buff_cursor, suggestion);
             suggestion[suggestion_len] = 0;
@@ -166,12 +63,14 @@ int main(){
             printf("\r"CLEAR); //ocisti ekran
             prompt(0,0, "-> ", COLOR_CYAN, 0); // izbaci prompt
             printf("%s", buff); //ispise buffer
+            //if(suggestion_len) cprintf(COLOR_RED, STYLE_NONE, "%s\033[%dD", suggestion, suggestion_len); // ako ima sugestija onda je ispisi i pomeri kursor na levo
             if(suggestion_len) cprintf(COLOR_RED, STYLE_NONE, "%s\033[%dD", suggestion, suggestion_len); // ako ima sugestija onda je ispisi i pomeri kursor na levo
             continue;
         };
 
-        int n = tokenize(buff, tokens);
+        int n = tokenize(buff, buff_cursor, tokens);
         tokens[n] = NULL;
+        buff_cursor = 0;
 
 //        printf("Tokens: ");
 //        for(int i = 0; tokens[i] != NULL; i++) printf("%s ", tokens[i]);
