@@ -26,8 +26,6 @@ void enable_raw_mode(struct termios *original);
 
 void disable_raw_mode(struct termios *original);
 
-int tokenize(char *, int ,  char *[MAX_TOKEN_SIZE]);
-
 int traverse_directory(const char *path, const char *target_name);
 
 #endif

@@ -25,62 +25,6 @@ void disable_raw_mode(struct termios *original){
     tcsetattr(STDIN_FILENO, TCSANOW, original);
 }
 
-
-int tokenize(char buff[], int buff_cursor, char *tokens[]){
-
-    /*int i = 0;
-    char *token = strtok(str, " ");
-    while(token){
-        tokens[i] = token;
-        i++;
-        token = strtok(NULL, " ");
-    }
-    */
-
-    char *token;
-    int token_len = 0;
-    int num_of_tokens = 0;
-    int in_single_quote = 0;
-    int in_double_quote = 0;
-
-    for(int i = 0; i <= buff_cursor; i++){
-// "tok"t t1 "cool c.c"
-        if(buff[i] == '\'' && !in_double_quote){
-            in_single_quote = !in_single_quote;
-            if(i+1 <= buff_cursor && buff[i+1] == ' ' || buff[i+1] == 0) buff[i] = 0;
-            continue;
-        }
-
-        if(buff[i] == '\"' && !in_single_quote){
-            in_double_quote = !in_double_quote;
-            if(i+1 <= buff_cursor && buff[i+1] == ' ' || buff[i+1] == 0) buff[i] = 0;
-            continue;
-        }
-
-        if(buff[i] == ' ' && !in_single_quote && !in_double_quote){
-            if(!token) continue;
-            token[token_len] = 0;
-            tokens[num_of_tokens] = token;
-            num_of_tokens++;
-            token_len = 0;
-            token = NULL;
-            continue;
-        }else if (!token) {
-            token = buff + i;
-        }
-
-        token_len++;
-    }
-
-    if(token){
-        token[token_len] = 0;
-        tokens[num_of_tokens] = token;
-        num_of_tokens++;
-    }
-
-    return num_of_tokens;
-}
-
 int traverse_directory(const char *path, const char *target_name) {
     DIR *dir = opendir(path);
     if (!dir) {

@@ -3,8 +3,8 @@ CFLAGS=-I.
 BUILD_DIR=build/
 BIN_DIR=bin/
 
-DEPS=CTui.h suggestion.h util.h
-SRCS=my_shell.c CTui.c suggestion.c util.c
+DEPS=CTui.h suggestion.h util.h CLParser.h
+SRCS=my_shell.c CTui.c suggestion.c util.c CLParser.c
 OBJS=$(SRCS:%.c=$(BUILD_DIR)%.o)
 
 my_shell: $(OBJS) | $(BIN_DIR)

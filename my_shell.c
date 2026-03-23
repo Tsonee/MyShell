@@ -1,7 +1,9 @@
+#include <string.h>
 #include <termios.h>
 #include "CTui.h"
 #include "util.h"
 #include "suggestion.h"
+#include "CLParser.h"
 
 #define BUFF_SIZE 256
 #define BACKSPACE 127
@@ -9,6 +11,8 @@
 #define CMD_BASE_PATH "/usr/bin/"
 #define HOME_PATH "/home/"
 #define MAX_PATH 512
+
+//#define DEBUG_CLARGS
 
 int main(){
     struct termios original;
@@ -19,7 +23,7 @@ int main(){
     int buff_cursor = 0;
     char suggestion[BUFF_SIZE + 1];
     int suggestion_len;
-    char *tokens[MAX_TOKENS];
+    char tokens[MAX_TOKENS][MAX_TOKEN_SIZE];
     char c;
     char curr_working_dir[MAX_PATH + 1];
     char user[LOGIN_NAME_MAX + 1];
@@ -46,7 +50,7 @@ int main(){
             if(c == '\n'){
                 disable_raw_mode(&original);
                 if(buff_cursor) ready_to_exec = 1;
-                buff[buff_cursor] = 0;
+                buff[buff_cursor] = '\n';
                 command_mode = 0;
                 printf("\n");//nakon izlaska iz raw moda zato sto nije stigao da ispise u buffer
                 continue;
@@ -69,7 +73,15 @@ int main(){
         };
 
         int n = tokenize(buff, buff_cursor, tokens);
-        tokens[n] = NULL;
+        char *tokens_ptr[MAX_TOKENS];
+        for(int i = 0; i < n; i++) tokens_ptr[i] = tokens[i];
+
+#ifdef DEBUG_CLARGS
+        printf("tokens: ");
+        for(int i = 0; i < n; i++) printf("%s ", tokens[i]);
+        printf("\n");
+#endif
+        tokens_ptr[n] = NULL;
         buff_cursor = 0;
 
 //        printf("Tokens: ");
@@ -113,7 +125,7 @@ int main(){
             strncpy(cmd_to_exec, CMD_BASE_PATH, sizeof(CMD_BASE_PATH));
             strncat(cmd_to_exec, tokens[0], sizeof(CMD_BASE_PATH) + strlen(tokens[0]));
 
-            execv(cmd_to_exec, tokens);
+            execv(cmd_to_exec, tokens_ptr);
             printf("Error while execing!!!\n");
             ready_to_exec = 0;
             return 1;

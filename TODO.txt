@@ -1,3 +1,2 @@
-1) Handluje "" ''
 2) /home/user/ -> zameniti sa ~
 3) implementirati sugestije do kraja
