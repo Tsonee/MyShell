@@ -1,4 +1,5 @@
 #include "util.h"
+#include "suggestion.h"
 #include <stdio.h>
 #include <string.h>
 
@@ -56,4 +57,22 @@ int traverse_directory(const char *path, const char *target_name) {
     }
 
     return 0;
+}
+
+void get_home_usr(char exp[MAX_TOKEN_SIZE]){
+    char usr[MAX_TOKEN_SIZE];
+    get_current_username(usr);
+    snprintf(exp, MAX_TOKEN_SIZE, "/home/%s", usr);
+}
+
+void expand(char tokens[MAX_TOKENS][MAX_TOKENS], int n){
+
+    char exp[MAX_TOKEN_SIZE];
+    get_home_usr(exp);
+
+    for(int i = 0; i < n; i++){
+        if(tokens[i][0] == '~'){
+            snprintf(tokens[i], MAX_TOKEN_SIZE, "%s/%s", exp, tokens[i] + 1);
+        }
+    }
 }

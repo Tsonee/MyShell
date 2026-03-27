@@ -28,4 +28,6 @@ void disable_raw_mode(struct termios *original);
 
 int traverse_directory(const char *path, const char *target_name);
 
+void expand(char [MAX_TOKENS][MAX_TOKEN_SIZE], int);
+
 #endif

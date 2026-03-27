@@ -1,9 +1,13 @@
+#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+#include <sys/wait.h>
 #include <termios.h>
 #include "CTui.h"
 #include "util.h"
 #include "suggestion.h"
 #include "CLParser.h"
+
 
 #define BUFF_SIZE 256
 #define BACKSPACE 127
@@ -21,12 +25,16 @@ int main(){
     int ready_to_exec = 0;
     char buff[BUFF_SIZE + 1];//zbog tokenizacije, terminirajuca nula
     int buff_cursor = 0;
-    char suggestion[BUFF_SIZE + 1];
+    char sugg[BUFF_SIZE + 1];
     int suggestion_len;
     char tokens[MAX_TOKENS][MAX_TOKEN_SIZE];
     char c;
     char curr_working_dir[MAX_PATH + 1];
     char user[LOGIN_NAME_MAX + 1];
+    suggestion *suggestions = NULL;
+    suggestions = malloc(sizeof(suggestion) * MAX_SUGGESTIONS);
+    if(suggestions == NULL) return -1;
+    int n_suggestions;
 
     get_current_username(user);
 
@@ -34,6 +42,8 @@ int main(){
         printf("ERROR opening curr_working_dir!!!\n");
         return 1;
     }
+
+    open_suggestion_file(suggestions, &n_suggestions);
 
     for(;;){ // ovaj loop nije los
 
@@ -61,20 +71,23 @@ int main(){
             }else buff[buff_cursor++] = c;
 
             buff[buff_cursor] = 0;
-            suggestion_len = suggest(buff, buff_cursor, suggestion);
-            suggestion[suggestion_len] = 0;
+            suggestion_len = suggest(buff, buff_cursor, sugg);
+            sugg[suggestion_len] = 0;
 
             printf("\r"CLEAR); //ocisti ekran
             prompt(0,0, "-> ", COLOR_CYAN, 0); // izbaci prompt
             printf("%s", buff); //ispise buffer
             //if(suggestion_len) cprintf(COLOR_RED, STYLE_NONE, "%s\033[%dD", suggestion, suggestion_len); // ako ima sugestija onda je ispisi i pomeri kursor na levo
-            if(suggestion_len) cprintf(COLOR_RED, STYLE_NONE, "%s\033[%dD", suggestion, suggestion_len); // ako ima sugestija onda je ispisi i pomeri kursor na levo
+            if(suggestion_len) cprintf(COLOR_RED, STYLE_NONE, "%s\033[%dD", sugg, suggestion_len); // ako ima sugestija onda je ispisi i pomeri kursor na levo
             continue;
         };
 
         int n = tokenize(buff, buff_cursor, tokens);
         char *tokens_ptr[MAX_TOKENS];
+        buff[buff_cursor] = 0;
+        expand(tokens, n);
         for(int i = 0; i < n; i++) tokens_ptr[i] = tokens[i];
+
 
 #ifdef DEBUG_CLARGS
         printf("tokens: ");
@@ -131,12 +144,18 @@ int main(){
             return 1;
         }else{
             wait(0);
+            printf("after wait!\n");
+            insert_suggestion(buff, buff_cursor, suggestions, &n_suggestions);
+
             memset(buff, 0, BUFF_SIZE);
             buff_cursor = 0;
             ready_to_exec = 0;
         }
 
     }
+
+    close_suggestion_file(suggestions, &n_suggestions);
+    free(suggestions);
 
     return 0;
 }
