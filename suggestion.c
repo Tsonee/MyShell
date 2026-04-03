@@ -24,7 +24,7 @@ int open_suggestion_file(suggestion suggestions[MAX_SUGGESTIONS], int *n_suggest
     for(int i = 0; i < *n_suggestions; i++){
         //printf("%s debug!!\n", file_path);
         fscanf(file, "%d ", &suggestions[i].freq);
-        fgets(suggestions[i].val, MAX_SUGGESTIONS, file);
+        fgets(suggestions[i].val, MAX_SUGGESTION_SIZE, file);
         suggestions[i].val[strlen(suggestions[i].val) - 1] = 0;
         //fscanf(file, "%s %d\n", &suggestions[i].val, &suggestions[i].freq);
     }
@@ -109,23 +109,85 @@ int suggestion_exists(char buff[], int buff_len, suggestion suggestions[], int *
     return -1;
 }
 
+void sort_suggestions_by_freq(suggestion suggestions[], int *n_suggestions){
+
+    //inefficient, but ok for this case
+
+    for(int i = 0; i < *n_suggestions - 1; i++){
+        int swap_index = i;
+        for(int j = i + 1; j < *n_suggestions; j++){
+            if(suggestions[j].freq < suggestions[swap_index].freq){
+                swap_index = j;
+            }
+        }
+
+        if(swap_index != i){
+            suggestion temp;
+            memcpy(&temp, &suggestions[i], sizeof(suggestion));
+            memcpy(&suggestions[i], &suggestions[swap_index], sizeof(suggestion));
+            memcpy(&suggestions[swap_index], &temp, sizeof(suggestion));
+        }
+    }
+
+};
+
+int onlimit_delete_suggestions(suggestion suggestions[], int *n_suggestion, int n){
+
+    suggestion temp[MAX_SUGGESTIONS];
+
+
+    memcpy(&temp, suggestions, MAX_SUGGESTIONS*sizeof(suggestion));
+    memset(suggestions, 0, MAX_SUGGESTIONS*sizeof(suggestion));
+
+    sort_suggestions_by_freq(temp, n_suggestion);
+
+    //for(int i = 0; i < *n_suggestion; i++) printf("%s %d\n", temp[i].val, temp[i].freq);
+
+    *n_suggestion = 0;
+
+    for(int i = n; i < MAX_SUGGESTIONS; i++) insert_suggestion_back(&temp[i], suggestions, n_suggestion);
+
+    return -1;
+};
+
+void insert_suggestion_back(suggestion *sugg, suggestion suggestions[], int *n_suggestions){
+
+    int pos = *n_suggestions - 1;
+    printf("%s %d\n", sugg->val, sugg->freq);
+
+    for(; pos >= 0; pos--){
+        int cmp = lex_compare(suggestions[pos].val, sugg->val, MAX_SUGGESTION_SIZE);
+
+        if(cmp == 1){
+            memcpy(suggestions + pos + 1, sugg, sizeof(suggestion));
+        }else break;
+    }
+
+    memcpy(suggestions + pos + 1, sugg, sizeof(suggestion));
+
+    (*n_suggestions)++;
+}
+
 void insert_suggestion(char buff[], int buff_len, suggestion suggestions[], int *n_suggestions){
 
-    if(*n_suggestions > MAX_SUGGESTIONS) return; //dodati deo za brisanje sugestija
 
-    if((*n_suggestions) == 0){
+/*    if((*n_suggestions) == 0){
         strncpy(suggestions[0].val, buff, MAX_SUGGESTIONS);
         suggestions[0].freq = 1;
         (*n_suggestions)++;
         return;
     }
+*/
 
     int s = suggestion_exists(buff, buff_len, suggestions, n_suggestions, MAX_SUGGESTION_SIZE);
+
 
     if(s != -1){
         suggestions[s].freq++;
         return;
     }
+
+    if(*n_suggestions >= MAX_SUGGESTIONS) onlimit_delete_suggestions(suggestions, n_suggestions, SUGGESTION_DELETE_SIZE); //dodati deo za brisanje sugestija
 
     int pos = *n_suggestions - 1;
 
