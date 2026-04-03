@@ -19,15 +19,15 @@ extern char *const keywords[];
 
 extern const int keywords_size;
 
-int suggest(char [], int , char []);
+int suggest(char [], int , char **, suggestion[], int *);
 
 int open_suggestion_file(suggestion [], int *);
 
 void insert_suggestion(char [], int, suggestion[], int *);
 
-int suggestion_exists(char [], int, suggestion[], int*);
+int suggestion_exists(char [], int, suggestion[], int*, int);
 
-int lex_compare(char *, char *);
+int lex_compare(char *, char *, int n);
 
 int close_suggestion_file(suggestion [], int *);
 

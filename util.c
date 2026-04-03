@@ -72,7 +72,9 @@ void expand(char tokens[MAX_TOKENS][MAX_TOKENS], int n){
 
     for(int i = 0; i < n; i++){
         if(tokens[i][0] == '~'){
-            snprintf(tokens[i], MAX_TOKEN_SIZE, "%s/%s", exp, tokens[i] + 1);
+            char temp[MAX_TOKEN_SIZE];
+            strncpy(temp, tokens[i] + 1, MAX_TOKEN_SIZE - 1);
+            snprintf(tokens[i], MAX_TOKEN_SIZE, "%s%s", exp, temp);
         }
     }
 }

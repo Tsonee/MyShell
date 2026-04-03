@@ -11,10 +11,12 @@
 
 #define BUFF_SIZE 256
 #define BACKSPACE 127
+#define TAB 9
 #define CLEAR "\033[K"
 #define CMD_BASE_PATH "/usr/bin/"
 #define HOME_PATH "/home/"
 #define MAX_PATH 512
+
 
 //#define DEBUG_CLARGS
 
@@ -25,8 +27,8 @@ int main(){
     int ready_to_exec = 0;
     char buff[BUFF_SIZE + 1];//zbog tokenizacije, terminirajuca nula
     int buff_cursor = 0;
-    char sugg[BUFF_SIZE + 1];
-    int suggestion_len;
+    char *sugg = NULL;
+    int suggestion_len = 0;
     char tokens[MAX_TOKENS][MAX_TOKEN_SIZE];
     char c;
     char curr_working_dir[MAX_PATH + 1];
@@ -34,7 +36,7 @@ int main(){
     suggestion *suggestions = NULL;
     suggestions = malloc(sizeof(suggestion) * MAX_SUGGESTIONS);
     if(suggestions == NULL) return -1;
-    int n_suggestions;
+    int n_suggestions = 0;
 
     get_current_username(user);
 
@@ -68,11 +70,17 @@ int main(){
 
             if(c == BACKSPACE){
                 if(buff_cursor >= 1) buff_cursor--;
-            }else buff[buff_cursor++] = c;
+            }else if(c == TAB && sugg){
+                strncpy(buff + buff_cursor, sugg, strlen(sugg));
+                buff_cursor+=strlen(sugg);
+                sugg = NULL;
+                suggestion_len = 0;
+                c = 0;
+            }
+            else buff[buff_cursor++] = c;
 
             buff[buff_cursor] = 0;
-            suggestion_len = suggest(buff, buff_cursor, sugg);
-            sugg[suggestion_len] = 0;
+            suggestion_len = suggest(buff, buff_cursor, &sugg, suggestions, &n_suggestions);
 
             printf("\r"CLEAR); //ocisti ekran
             prompt(0,0, "-> ", COLOR_CYAN, 0); // izbaci prompt
@@ -101,7 +109,10 @@ int main(){
 //        for(int i = 0; tokens[i] != NULL; i++) printf("%s ", tokens[i]);
 //        printf("\n");
 
-        if(strncmp(tokens[0], "exit", BUFF_SIZE) == 0) break;
+        if(strncmp(tokens[0], "exit", BUFF_SIZE) == 0){
+            insert_suggestion(buff, buff_cursor, suggestions, &n_suggestions);
+            break;
+        }
         else if(strncmp(tokens[0], "cd", BUFF_SIZE) == 0){
             if(n != 2){
                 printf("Wrong usage of cd!\n");
@@ -116,10 +127,12 @@ int main(){
                 continue;
             }
 
+
             if(getcwd(curr_working_dir, sizeof(curr_working_dir)) == NULL){
                 printf("ERROR opening curr_working_dir!!!\n");
                 return 1;
             }
+            insert_suggestion(buff, buff_cursor, suggestions, &n_suggestions);
             ready_to_exec = 0;
             continue;
         }
@@ -143,9 +156,9 @@ int main(){
             ready_to_exec = 0;
             return 1;
         }else{
-            wait(0);
-            printf("after wait!\n");
-            insert_suggestion(buff, buff_cursor, suggestions, &n_suggestions);
+            int status;
+            wait(&status);
+            if(WIFEXITED(status)) insert_suggestion(buff, buff_cursor, suggestions, &n_suggestions);
 
             memset(buff, 0, BUFF_SIZE);
             buff_cursor = 0;
