@@ -3,13 +3,14 @@
 #include <string.h>
 #include <sys/wait.h>
 #include <termios.h>
+#include <unistd.h>
 #include "CTui.h"
 #include "util.h"
 #include "suggestion.h"
 #include "CLParser.h"
+#include "command.h"
 
-
-#define BUFF_SIZE 256
+#define BUFF_SIZE 1024
 #define BACKSPACE 127
 #define TAB 9
 #define CLEAR "\033[K"
@@ -95,6 +96,10 @@ int main(){
         buff[buff_cursor] = 0;
         expand(tokens, n);
         for(int i = 0; i < n; i++) tokens_ptr[i] = tokens[i];
+        command cmd;
+        init_command(&cmd, tokens[0], tokens_ptr, 0);
+
+        if(cmd.name[0] == '.') cmd.flags |= EXECUTE;
 
 
 #ifdef DEBUG_CLARGS
@@ -141,17 +146,23 @@ int main(){
 
         if(pid == 0){
 
-            if(!traverse_directory("/usr/bin/", tokens[0])){
+            if(cmd.flags & EXECUTE){
+               execv(cmd.name, cmd.args);
+               printf("Error: exec failed!\n");
+               exit(-1);
+            };
+
+            if(!traverse_directory(CMD_BASE_PATH, tokens[0])){
                 printf("Unknown command!\n");
                 ready_to_exec = 0;
                 return 1;
             }
 
-            char cmd_to_exec[sizeof(CMD_BASE_PATH) + strlen(tokens[0])];
+            char cmd_to_exec[sizeof(CMD_BASE_PATH) + strlen(cmd.name)];
             strncpy(cmd_to_exec, CMD_BASE_PATH, sizeof(CMD_BASE_PATH));
-            strncat(cmd_to_exec, tokens[0], sizeof(CMD_BASE_PATH) + strlen(tokens[0]));
+            strncat(cmd_to_exec, cmd.name, sizeof(CMD_BASE_PATH) + strlen(cmd.name));
 
-            execv(cmd_to_exec, tokens_ptr);
+            execv(cmd_to_exec, cmd.args);
             printf("Error while execing!!!\n");
             ready_to_exec = 0;
             return 1;

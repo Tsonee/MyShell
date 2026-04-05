@@ -6,11 +6,11 @@
 
 #define SUGGESTION_FILE_NAME ".suggestions"
 
-#define MAX_SUGGESTIONS 5
+#define MAX_SUGGESTIONS 10001
 
 #define MAX_SUGGESTION_SIZE 1024
 
-#define SUGGESTION_DELETE_SIZE 2
+#define SUGGESTION_DELETE_SIZE 2000
 
 typedef struct{
     int freq;

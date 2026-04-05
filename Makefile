@@ -5,7 +5,7 @@ BUILD_DIR=build/
 BIN_DIR=bin/
 TEST_DIR=bin/test/
 
-DEPS=CTui.h suggestion.h util.h CLParser.h
+DEPS=CTui.h suggestion.h util.h CLParser.h command.h
 
 MAIN_SRC=my_shell.c
 CORE_SRCS=CTui.c suggestion.c util.c CLParser.c

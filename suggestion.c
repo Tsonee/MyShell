@@ -1,6 +1,7 @@
 #include "suggestion.h"
 #include "util.h"
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 int open_suggestion_file(suggestion suggestions[MAX_SUGGESTIONS], int *n_suggestions){
@@ -43,8 +44,6 @@ int close_suggestion_file(suggestion suggestions[MAX_SUGGESTIONS], int *n_sugges
     FILE *file = fopen(file_path, "w");
 
     if(file == NULL) return -1;
-
-    for(int i = 0; i < *n_suggestions; i++) printf("%s->%d ", suggestions[i].val, suggestions[i].freq); printf("\n");
 
     fprintf(file, "%d\n", *n_suggestions);
     for(int i = 0; i < *n_suggestions; i++)
@@ -133,10 +132,10 @@ void sort_suggestions_by_freq(suggestion suggestions[], int *n_suggestions){
 
 int onlimit_delete_suggestions(suggestion suggestions[], int *n_suggestion, int n){
 
-    suggestion temp[MAX_SUGGESTIONS];
+    suggestion *temp = malloc(MAX_SUGGESTIONS*sizeof(suggestion));
 
 
-    memcpy(&temp, suggestions, MAX_SUGGESTIONS*sizeof(suggestion));
+    memcpy(temp, suggestions, MAX_SUGGESTIONS*sizeof(suggestion));
     memset(suggestions, 0, MAX_SUGGESTIONS*sizeof(suggestion));
 
     sort_suggestions_by_freq(temp, n_suggestion);
@@ -147,13 +146,14 @@ int onlimit_delete_suggestions(suggestion suggestions[], int *n_suggestion, int 
 
     for(int i = n; i < MAX_SUGGESTIONS; i++) insert_suggestion_back(&temp[i], suggestions, n_suggestion);
 
+    free(temp);
+
     return -1;
 };
 
 void insert_suggestion_back(suggestion *sugg, suggestion suggestions[], int *n_suggestions){
 
     int pos = *n_suggestions - 1;
-    printf("%s %d\n", sugg->val, sugg->freq);
 
     for(; pos >= 0; pos--){
         int cmp = lex_compare(suggestions[pos].val, sugg->val, MAX_SUGGESTION_SIZE);

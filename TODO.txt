@@ -1,8 +1,8 @@
-3) implementirati sugestije do kraja
-4) napraviti da mogu da se executuju fajlovi
 5) dozvoliti pipovanje
 6) dodati podrsku za izvrsavanje vise komandi odvajanjem ;
 
 
 Done:
 2) /home/user/ -> zameniti sa ~
+3) implementirati sugestije do kraja
+4) napraviti da mogu da se executuju fajlovi
