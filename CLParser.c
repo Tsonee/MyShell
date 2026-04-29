@@ -7,6 +7,7 @@ PTAG char_to_tag(char c){
         case '\\': return ESCAPE;
         case ' ': return SPACE;
         case '\n': return NEW_LINE;
+        case ';': return SEMICOLON;
 
         default: return ELSE;
     }
@@ -32,12 +33,27 @@ int tokenize(char buff[], int buff_cursor, char tokens[MAX_TOKENS][MAX_TOKEN_SIZ
         switch (state) {
             case UNQUOTED:
                 if(escaped) escaped = 0;
-                else if(tag == SINGLE_QUOTE) state = SINGLE_QUOTED;
-                else if(tag == DOUBLE_QUOTE) state = DOUBLE_QUOTED;
-                else if(tag == SPACE || tag == NEW_LINE){
+                else if(tag == SEMICOLON){
+                    if(token_len){
+                        tokens[num_of_tokens][token_len] = 0;
+                        num_of_tokens++;
+                        token_len = 0;
+                    }
+
+                    tokens[num_of_tokens][token_len++] = ';';
                     tokens[num_of_tokens][token_len] = 0;
                     num_of_tokens++;
                     token_len = 0;
+
+                }
+                else if(tag == SINGLE_QUOTE) state = SINGLE_QUOTED;
+                else if(tag == DOUBLE_QUOTE) state = DOUBLE_QUOTED;
+                else if(tag == SPACE || tag == NEW_LINE){
+                    if(token_len){
+                        tokens[num_of_tokens][token_len] = 0;
+                        num_of_tokens++;
+                        token_len = 0;
+                    }
                 }else tokens[num_of_tokens][token_len++] = buff[i];
             break;
             case SINGLE_QUOTED:

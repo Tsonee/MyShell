@@ -19,7 +19,7 @@
 #define MAX_PATH 512
 
 
-//#define DEBUG_CLARGS
+#define DEBUG_CLARGS
 
 int main(){
     struct termios original;
@@ -38,6 +38,7 @@ int main(){
     suggestions = malloc(sizeof(suggestion) * MAX_SUGGESTIONS);
     if(suggestions == NULL) return -1;
     int n_suggestions = 0;
+    command_queue cmd_queue;
 
     get_current_username(user);
 
@@ -91,20 +92,20 @@ int main(){
             continue;
         };
 
+        int flags = 0;
         int n = tokenize(buff, buff_cursor, tokens);
-        char *tokens_ptr[MAX_TOKENS];
+        char *tokens_ptr[MAX_TOKENS + 1];
         buff[buff_cursor] = 0;
         expand(tokens, n);
         for(int i = 0; i < n; i++) tokens_ptr[i] = tokens[i];
-        command cmd;
-        init_command(&cmd, tokens[0], tokens_ptr, 0);
-
-        if(cmd.name[0] == '.') cmd.flags |= EXECUTE;
+        init_cmd_queue(&cmd_queue);
+        fill_cmd_queue(&cmd_queue, tokens_ptr, n);
+        //if(cmd.name[0] == '.') cmd.flags |= EXECUTE;
 
 
 #ifdef DEBUG_CLARGS
         printf("tokens: ");
-        for(int i = 0; i < n; i++) printf("%s ", tokens[i]);
+        for(int i = 0; i <= n; i++) printf("%s ", tokens_ptr[i]);
         printf("\n");
 #endif
         tokens_ptr[n] = NULL;
@@ -142,38 +143,48 @@ int main(){
             continue;
         }
 
-        int pid = fork();
+        while(!cmd_queue_is_empty(&cmd_queue)){
+             command *curr_cmd = cmd_queue_top(&cmd_queue);
+             cmd_queue_pop(&cmd_queue);
 
-        if(pid == 0){
+            int pid = fork();
 
-            if(cmd.flags & EXECUTE){
-               execv(cmd.name, cmd.args);
-               printf("Error: exec failed!\n");
-               exit(-1);
-            };
+            if(pid == 0){
 
-            if(!traverse_directory(CMD_BASE_PATH, tokens[0])){
-                printf("Unknown command!\n");
+                if(curr_cmd->flags & EXECUTE){
+                execv(curr_cmd->name, curr_cmd->args);
+                printf("Error: exec failed!\n");
+                exit(-1);
+                };
+
+                if(!traverse_directory(CMD_BASE_PATH, tokens[0])){
+                    printf("Unknown command!\n");
+                    ready_to_exec = 0;
+                    return 1;
+                }
+
+                char cmd_to_exec[sizeof(CMD_BASE_PATH) + strlen(curr_cmd->name)];
+                strncpy(cmd_to_exec, CMD_BASE_PATH, sizeof(CMD_BASE_PATH));
+                strncat(cmd_to_exec, curr_cmd->name, sizeof(CMD_BASE_PATH) + strlen(curr_cmd->name));
+
+#ifdef DEBUG_CLARGS
+                printf("cmd_to_exec: %s\n", cmd_to_exec);
+                for(int i = 0; curr_cmd->args[i] != 0; i++) printf("%s ", curr_cmd->args[i]);
+                printf("\n");
+#endif
+                execv(cmd_to_exec, curr_cmd->args);
+                printf("Error while execing!!!\n");
                 ready_to_exec = 0;
                 return 1;
+            }else{
+                int status;
+                wait(&status);
+                if(WIFEXITED(status)) insert_suggestion(buff, buff_cursor, suggestions, &n_suggestions);
+
+                memset(buff, 0, BUFF_SIZE);
+                buff_cursor = 0;
+                ready_to_exec = 0;
             }
-
-            char cmd_to_exec[sizeof(CMD_BASE_PATH) + strlen(cmd.name)];
-            strncpy(cmd_to_exec, CMD_BASE_PATH, sizeof(CMD_BASE_PATH));
-            strncat(cmd_to_exec, cmd.name, sizeof(CMD_BASE_PATH) + strlen(cmd.name));
-
-            execv(cmd_to_exec, cmd.args);
-            printf("Error while execing!!!\n");
-            ready_to_exec = 0;
-            return 1;
-        }else{
-            int status;
-            wait(&status);
-            if(WIFEXITED(status)) insert_suggestion(buff, buff_cursor, suggestions, &n_suggestions);
-
-            memset(buff, 0, BUFF_SIZE);
-            buff_cursor = 0;
-            ready_to_exec = 0;
         }
 
     }

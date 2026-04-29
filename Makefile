@@ -8,7 +8,7 @@ TEST_DIR=bin/test/
 DEPS=CTui.h suggestion.h util.h CLParser.h command.h
 
 MAIN_SRC=my_shell.c
-CORE_SRCS=CTui.c suggestion.c util.c CLParser.c
+CORE_SRCS=CTui.c suggestion.c util.c CLParser.c command.c
 
 MAIN_OBJ=$(MAIN_SRC:%.c=$(BUILD_DIR)%.o)
 CORE_OBJS=$(CORE_SRCS:%.c=$(BUILD_DIR)%.o)

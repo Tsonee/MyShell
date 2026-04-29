@@ -3,7 +3,9 @@
 
 #include "util.h"
 
-#define EXECUTE 1
+#define EXECUTE 1 << 0
+
+#define MAX_COMMANDS 256
 
 typedef struct{
     char *name;
@@ -11,10 +13,21 @@ typedef struct{
     unsigned int flags;
 }command;
 
-void init_command(command *cmd, char *name, char **args, unsigned int flags){
-    cmd->name = name;
-    cmd->args = args;
-    cmd->flags = flags;
-}
+typedef struct{
+    command cmds[MAX_COMMANDS];
+    int front;
+    int back;
+}command_queue;
+
+void init_command(command *, char *, char **, unsigned int);
+
+void fill_cmd_queue(command_queue *cmd_queue, char **, int);
+void init_cmd_queue(command_queue*);
+
+int cmd_queue_is_empty(command_queue *);
+int cmd_queue_is_full(command_queue *);
+int cmd_queue_push(command_queue *, command *);
+command* cmd_queue_top(command_queue *);
+int cmd_queue_pop(command_queue *);
 
 #endif

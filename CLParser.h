@@ -9,7 +9,8 @@ typedef enum{
     DOUBLE_QUOTE,
     ESCAPE,
     SPACE,
-    NEW_LINE
+    NEW_LINE,
+    SEMICOLON
 }PTAG;
 
 typedef enum{
