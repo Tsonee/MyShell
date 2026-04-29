@@ -1,5 +1,5 @@
 5) dozvoliti pipovanje
-6) dodati podrsku za izvrsavanje vise komandi odvajanjem ;
+6) dodati podrsku za izvrsavanje vise komandi odvajanjem ;    // skoro zavrseno problem sa praznim komandama
 
 
 Done:
