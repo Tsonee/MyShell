@@ -19,7 +19,7 @@
 #define MAX_PATH 512
 
 
-#define DEBUG_CLARGS
+//#define DEBUG_CLARGS
 
 int main(){
     struct termios original;
@@ -59,6 +59,8 @@ int main(){
             enable_raw_mode(&original);
         }
 
+        //printf("BUFF CURSOR!: %d\n", buff_cursor);
+
         if(command_mode && !ready_to_exec){ //msm to je isti djavo
             c = getchar();
             if(c == '\n'){
@@ -90,16 +92,23 @@ int main(){
             //if(suggestion_len) cprintf(COLOR_RED, STYLE_NONE, "%s\033[%dD", suggestion, suggestion_len); // ako ima sugestija onda je ispisi i pomeri kursor na levo
             if(suggestion_len) cprintf(COLOR_RED, STYLE_NONE, "%s\033[%dD", sugg, suggestion_len); // ako ima sugestija onda je ispisi i pomeri kursor na levo
             continue;
-        };
+        }
 
         int flags = 0;
         int n = tokenize(buff, buff_cursor, tokens);
         char *tokens_ptr[MAX_TOKENS + 1];
         buff[buff_cursor] = 0;
+        insert_suggestion(buff, buff_cursor, suggestions, &n_suggestions);
+        //printf("buff: %s\nbuff_cursor: %d", buff, buff_cursor);
         expand(tokens, n);
         for(int i = 0; i < n; i++) tokens_ptr[i] = tokens[i];
         init_cmd_queue(&cmd_queue);
         fill_cmd_queue(&cmd_queue, tokens_ptr, n);
+        if(cmd_queue_is_empty(&cmd_queue)){
+            ready_to_exec = 0;
+            buff_cursor = 0;
+            continue;
+        }
         //if(cmd.name[0] == '.') cmd.flags |= EXECUTE;
 
 
@@ -179,14 +188,12 @@ int main(){
             }else{
                 int status;
                 wait(&status);
-                if(WIFEXITED(status)) insert_suggestion(buff, buff_cursor, suggestions, &n_suggestions);
 
                 memset(buff, 0, BUFF_SIZE);
                 buff_cursor = 0;
                 ready_to_exec = 0;
             }
         }
-
     }
 
     close_suggestion_file(suggestions, &n_suggestions);

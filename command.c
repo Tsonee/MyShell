@@ -30,6 +30,8 @@ void fill_cmd_queue(command_queue *q, char **tokens_ptr, int num_of_tokens){
             j++;
         }
 
+        //if(j == num_of_tokens) break;
+
         tokens_ptr[j] = 0;
 
         if(i == j) continue;
@@ -45,7 +47,7 @@ void fill_cmd_queue(command_queue *q, char **tokens_ptr, int num_of_tokens){
 }
 
 int cmd_queue_is_empty(command_queue *q){
-    return !(q->back - q->front);
+    return q->back == q->front;
 }
 
 

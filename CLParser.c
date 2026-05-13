@@ -24,7 +24,6 @@ int tokenize(char buff[], int buff_cursor, char tokens[MAX_TOKENS][MAX_TOKEN_SIZ
 
     for(int i = 0; i <= buff_cursor; i++){
         tag = char_to_tag(buff[i]);
-
         if(tag == ESCAPE && !escaped){
             escaped = 1;
             continue;
@@ -44,7 +43,6 @@ int tokenize(char buff[], int buff_cursor, char tokens[MAX_TOKENS][MAX_TOKEN_SIZ
                     tokens[num_of_tokens][token_len] = 0;
                     num_of_tokens++;
                     token_len = 0;
-
                 }
                 else if(tag == SINGLE_QUOTE) state = SINGLE_QUOTED;
                 else if(tag == DOUBLE_QUOTE) state = DOUBLE_QUOTED;
