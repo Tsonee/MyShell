@@ -19,7 +19,7 @@
 #define MAX_PATH 512
 
 
-//#define DEBUG_CLARGS
+#define DEBUG_CLARGS
 
 int main(){
     struct termios original;
@@ -38,7 +38,7 @@ int main(){
     suggestions = malloc(sizeof(suggestion) * MAX_SUGGESTIONS);
     if(suggestions == NULL) return -1;
     int n_suggestions = 0;
-    command_queue cmd_queue;
+    command_queue *cmd_queue = (command_queue *)malloc(sizeof(command_queue));
 
     get_current_username(user);
 
@@ -46,7 +46,6 @@ int main(){
         printf("ERROR opening curr_working_dir!!!\n");
         return 1;
     }
-
     open_suggestion_file(suggestions, &n_suggestions);
 
     for(;;){ // ovaj loop nije los
@@ -99,12 +98,11 @@ int main(){
         char *tokens_ptr[MAX_TOKENS + 1];
         buff[buff_cursor] = 0;
         insert_suggestion(buff, buff_cursor, suggestions, &n_suggestions);
-        //printf("buff: %s\nbuff_cursor: %d", buff, buff_cursor);
         expand(tokens, n);
         for(int i = 0; i < n; i++) tokens_ptr[i] = tokens[i];
-        init_cmd_queue(&cmd_queue);
-        fill_cmd_queue(&cmd_queue, tokens_ptr, n);
-        if(cmd_queue_is_empty(&cmd_queue)){
+        cmd_queue_clear(cmd_queue);
+        fill_cmd_queue(cmd_queue, tokens_ptr, n);
+        if(cmd_queue_is_empty(cmd_queue)){
             ready_to_exec = 0;
             buff_cursor = 0;
             continue;
@@ -152,13 +150,36 @@ int main(){
             continue;
         }
 
-        while(!cmd_queue_is_empty(&cmd_queue)){
-             command *curr_cmd = cmd_queue_top(&cmd_queue);
-             cmd_queue_pop(&cmd_queue);
+        int prev_p[2] = {-1, -1};
+        int next_p[2] = {-1, -1};
+        // ls | wc
+        while(!cmd_queue_is_empty(cmd_queue)){
+             command *curr_cmd = cmd_queue_top(cmd_queue);
+             cmd_queue_pop(cmd_queue);
+
+
+            if(curr_cmd->flags & PIPE_IN){
+                if(prev_p[0] != -1) close(prev_p[0]);
+                prev_p[0] = next_p[0];
+                close(next_p[1]);
+            }
+
+            if(curr_cmd->flags & PIPE_OUT){
+                pipe(next_p);
+            }
 
             int pid = fork();
 
             if(pid == 0){
+
+                if(curr_cmd->flags & PIPE_OUT){
+                    close(1);
+                    dup(next_p[1]);
+                }
+                if(curr_cmd->flags & PIPE_IN){
+                    close(0);
+                    dup(prev_p[0]);
+                }
 
                 if(curr_cmd->flags & EXECUTE){
                 execv(curr_cmd->name, curr_cmd->args);
@@ -181,22 +202,30 @@ int main(){
                 for(int i = 0; curr_cmd->args[i] != 0; i++) printf("%s ", curr_cmd->args[i]);
                 printf("\n");
 #endif
+
                 execv(cmd_to_exec, curr_cmd->args);
                 printf("Error while execing!!!\n");
                 ready_to_exec = 0;
                 return 1;
-            }else{
-                int status;
-                wait(&status);
-
-                memset(buff, 0, BUFF_SIZE);
-                buff_cursor = 0;
-                ready_to_exec = 0;
             }
         }
+
+        while(wait(0) > 0);
+        close(next_p[1]);
+        close(prev_p[0]);
+
+        memset(buff, 0, BUFF_SIZE);
+        buff_cursor = 0;
+        ready_to_exec = 0;
+        if(prev_p[0] != -1 && prev_p[1] != -1){
+           close(prev_p[0]);
+           close(prev_p[1]);
+        }
+
     }
 
     close_suggestion_file(suggestions, &n_suggestions);
+    free(cmd_queue);
     free(suggestions);
 
     return 0;

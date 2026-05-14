@@ -1,13 +1,8 @@
 #include "command.h"
 #include "util.h"
+#include <stdio.h>
 #include <string.h>
 
-
-void init_cmd_queue(command_queue *q){
-    memset(q, 0, MAX_COMMANDS*sizeof(command));
-    q->front = 0;
-    q->back = 0;
-}
 
 void init_command(command *cmd, char *name, char **args, unsigned int flags){
     cmd->name = name;
@@ -17,24 +12,35 @@ void init_command(command *cmd, char *name, char **args, unsigned int flags){
 
 void fill_cmd_queue(command_queue *q, char **tokens_ptr, int num_of_tokens){
 
-
     int j = 0;
+    int pipe_flag = 0;
+
 
     for(int i = 0; i < num_of_tokens; i++){
-        unsigned int flags = 0;
+        unsigned int flags = pipe_flag ? PIPE_IN : 0;
         if(tokens_ptr[i][0] == '.') flags |= EXECUTE;
 
         j = i;
+        pipe_flag = 0;
 
-        while(j < num_of_tokens && tokens_ptr[j][0] != ';'){
+        while(j < num_of_tokens && (tokens_ptr[j][0] != ';' && tokens_ptr[j][0] != '|')){
             j++;
         }
-
-        //if(j == num_of_tokens) break;
+        pipe_flag = (j==num_of_tokens) ? 0 : (tokens_ptr[j][0] == '|');
+        if(pipe_flag && i == j){
+            fflush(stdout);
+            cmd_queue_clear(q);
+            printf("Pipe cannot be a last token in the command queue!\n");
+            return;
+        }
 
         tokens_ptr[j] = 0;
 
         if(i == j) continue;
+
+        if(pipe_flag){
+            flags |= PIPE_OUT;
+        }
 
         command cmd;
         init_command(&cmd, tokens_ptr[i], tokens_ptr + i, flags);
@@ -50,6 +56,11 @@ int cmd_queue_is_empty(command_queue *q){
     return q->back == q->front;
 }
 
+void cmd_queue_clear(command_queue *q){
+    memset(q->cmds, 0, MAX_COMMANDS * sizeof(command));
+    q->back = 0;
+    q->front = 0;
+}
 
 int cmd_queue_is_full(command_queue *q){
     return q->back == MAX_COMMANDS;

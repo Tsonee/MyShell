@@ -10,7 +10,8 @@ typedef enum{
     ESCAPE,
     SPACE,
     NEW_LINE,
-    SEMICOLON
+    SEMICOLON,
+    PIPE
 }PTAG;
 
 typedef enum{

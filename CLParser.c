@@ -8,6 +8,7 @@ PTAG char_to_tag(char c){
         case ' ': return SPACE;
         case '\n': return NEW_LINE;
         case ';': return SEMICOLON;
+        case '|': return PIPE;
 
         default: return ELSE;
     }
@@ -40,6 +41,17 @@ int tokenize(char buff[], int buff_cursor, char tokens[MAX_TOKENS][MAX_TOKEN_SIZ
                     }
 
                     tokens[num_of_tokens][token_len++] = ';';
+                    tokens[num_of_tokens][token_len] = 0;
+                    num_of_tokens++;
+                    token_len = 0;
+                }else if(tag == PIPE){
+                    if(token_len){
+                        tokens[num_of_tokens][token_len] = 0;
+                        num_of_tokens++;
+                        token_len = 0;
+                    }
+
+                    tokens[num_of_tokens][token_len++] = '|';
                     tokens[num_of_tokens][token_len] = 0;
                     num_of_tokens++;
                     token_len = 0;
